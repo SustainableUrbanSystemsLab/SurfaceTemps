@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from surface_temps.geometry import NeighborhoodGeometry
-from surface_temps.plotting import plot_heatmap, plot_neighborhood_3d, plot_surface_temps
+from surface_temps.plotting import plot_heatmap, plot_neighborhood_3d, plot_surface_temps, render_daily_gif
 from surface_temps.surfaces import build_surfaces, simulate_all
 from surface_temps.weather import load_epw
 
@@ -58,6 +58,12 @@ def main():
         fig3 = plot_heatmap(results, "street_0")
         fig3.savefig("heatmap_street.png", dpi=150, bbox_inches="tight")
         print("Saved: heatmap_street.png")
+
+    # Animated GIF: 24h cycle on the peak day
+    peak_day_start = (peak_hour // 24) * 24
+    print(f"\nRendering 24-hour GIF (day starting at hour {peak_day_start})...")
+    render_daily_gif(geometry, results, day_start_hour=peak_day_start, output_path="neighborhood_24h.gif")
+    print("Saved: neighborhood_24h.gif")
 
     plt.show()
 

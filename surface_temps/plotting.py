@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import io
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.cm as cm
+from PIL import Image
 
 from surface_temps.geometry import NeighborhoodGeometry
 from surface_temps.weather import WeatherData
@@ -164,3 +168,57 @@ def plot_neighborhood_3d(
 
     ax.set_title(f"Neighborhood surface temperatures — hour {hour}")
     return fig
+
+
+def render_daily_gif(
+    geometry: NeighborhoodGeometry,
+    results: dict[str, np.ndarray],
+    day_start_hour: int,
+    output_path: str | Path,
+    duration_ms: int = 200,
+    dpi: int = 120,
+    elev: float = 35,
+    azim: float = -60,
+    cmap_name: str = "RdYlBu_r",
+) -> None:
+    """Render a 24-frame animated GIF of the neighborhood over one day."""
+    hours = range(day_start_hour, day_start_hour + 24)
+
+    all_temps = []
+    for h in hours:
+        for box in geometry.boxes:
+            for face in box.faces():
+                T = results.get(face.name)
+                if T is not None:
+                    all_temps.append(T[h])
+        for patch in geometry.ground_patches:
+            T = results.get(patch.name)
+            if T is not None:
+                all_temps.append(T[h])
+
+    vmin = np.floor(min(all_temps) / 5) * 5
+    vmax = np.ceil(max(all_temps) / 5) * 5
+
+    frames: list[Image.Image] = []
+    for h in hours:
+        fig = plot_neighborhood_3d(
+            geometry, results, hour=h,
+            vmin=vmin, vmax=vmax, elev=elev, azim=azim, cmap_name=cmap_name,
+        )
+        hour_of_day = h % 24
+        fig.axes[0].set_title(f"Surface temperatures — {hour_of_day:02d}:00")
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+        frames.append(Image.open(buf).copy())
+        buf.close()
+
+    frames[0].save(
+        output_path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=duration_ms,
+        loop=0,
+    )

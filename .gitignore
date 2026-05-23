@@ -24,8 +24,11 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Generated figures
+# Generated figures (keep docs/ for README)
 *.png
+*.gif
+!docs/*.png
+!docs/*.gif
 
 # uv
 uv.lock

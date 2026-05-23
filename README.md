@@ -11,27 +11,91 @@ uv pip install -e .
 uv run python examples/neighborhood.py
 ```
 
-This simulates a full year of hourly surface temperatures for a 12-building neighborhood in Atlanta and produces three figures:
+This simulates a full year of hourly surface temperatures for a 12-building neighborhood in Atlanta and produces the figures shown below.
 
-- **3D neighborhood snapshot** at the peak summer hour
-- **Time-series** of selected surface temperatures over 3 summer days
-- **Heatmap** (hour-of-day vs day-of-year) for a concrete street
+## Method
 
-## Method overview
+### Sol-air temperature
 
-1. **Material characterisation** — Multi-layer assemblies (brick walls, concrete slabs, soil+grass) are described by a 2x2 complex transfer matrix at each frequency.
-2. **Sol-air temperature** — Combines air temperature, sky/ground radiant temperature, and incident solar radiation into a single driving signal per surface orientation.
-3. **FFT** — Decomposes the 8760-hour sol-air signal into harmonics.
-4. **Admittance transfer function** — Each harmonic is multiplied by H_n = 1/(1 + m1·R_so/m2), where m1, m2 come from the transfer matrix at that frequency.
-5. **IFFT** — Reconstructs the surface temperature time series.
+The driving signal for each surface is the sol-air temperature, which combines convective, radiative, and solar heat transfer into a single equivalent temperature:
+
+$$T_\text{sol} = \frac{h_c \, T_\text{air} + h_r \, T_\text{sky} + \alpha \, Q_\text{sol}}{h_c + h_r}$$
+
+where $h_c$ is the convective coefficient (W/m$^2$K), $h_r$ is the linearised radiative coefficient (W/m$^2$K), $T_\text{sky}$ is the sky radiant temperature (K), $\alpha$ is the solar absorptivity, and $Q_\text{sol}$ is the incident solar irradiance (W/m$^2$).
+
+The convective coefficient follows the DOE-2 linear wind model:
+
+$$h_c = 5.7 + 3.8 \, v_\text{wind}$$
+
+Sky temperature is back-calculated from the EPW horizontal infrared radiation field:
+
+$$T_\text{sky} = \left( \frac{E_\text{IR}}{\varepsilon \, \sigma} \right)^{1/4}$$
+
+### Transfer matrix
+
+Each material layer is characterised by a $2 \times 2$ complex transfer matrix at angular frequency $\omega = 2\pi / P$:
+
+$$\mathbf{M}_\text{layer} = \begin{pmatrix} \cosh(pL) & \dfrac{\sinh(pL)}{\lambda \, p} \\[8pt] \lambda \, p \sinh(pL) & \cosh(pL) \end{pmatrix}$$
+
+where $p = \sqrt{i\omega / \alpha_d}$, $\alpha_d = \lambda / (\rho c)$ is the thermal diffusivity, $L$ is the layer thickness, and $\lambda$ is the thermal conductivity. The matrix has the property $\det(\mathbf{M}) = 1$.
+
+For a multi-layer assembly, the total transfer matrix is:
+
+$$\mathbf{M}_\text{total} = \mathbf{M}_{R_{si}} \prod_{j=1}^{N} \mathbf{M}_j$$
+
+where $\mathbf{M}_{R_{si}}$ is the internal surface resistance matrix and the product runs from the innermost to outermost layer. The external surface resistance $R_{so}$ is excluded from the matrix because it is applied as a boundary condition in the solver.
+
+### Admittance solver
+
+The sol-air temperature is decomposed into Fourier harmonics via FFT:
+
+$$\widetilde{T}_\text{sol}(n) = \text{FFT}\left[ T_\text{sol}(t) - \bar{T}_\text{sol} \right]$$
+
+At each harmonic $n$, the surface temperature transfer function is:
+
+$$H_n = \frac{1}{1 + \dfrac{m_{1,n} \, R_{so}}{m_{2,n}}}$$
+
+where $m_{1,n}$ and $m_{2,n}$ are the $(1,1)$ and $(1,2)$ entries of $\mathbf{M}_\text{total}$ evaluated at the period $P_n = P_\text{total} / n$. The mean component is handled separately:
+
+$$\bar{T}_{so} = \bar{T}_\text{sol} - U \left( \bar{T}_\text{sol} - T_i \right) R_{so}$$
+
+where $U$ is the steady-state U-value. The fluctuating surface temperature is recovered by inverse FFT:
+
+$$T_{so}(t) = \bar{T}_{so} + \text{IFFT}\left[ H_n \cdot \widetilde{T}_\text{sol}(n) \right]$$
 
 Solar position and irradiance transposition are handled by [pvlib](https://pvlib-python.readthedocs.io/). Weather data comes from standard EPW files.
 
+## Example output
+
+### 24-hour cycle
+
+Surface temperatures over a full diurnal cycle on the hottest day of the year in Atlanta. The animation loops continuously, showing how surfaces heat rapidly after sunrise, peak in the afternoon, and cool through the night.
+
+![24-hour surface temperature cycle](docs/neighborhood_24h.gif)
+
+### 3D neighborhood snapshot
+
+Surface temperatures at the peak summer hour for a 12-building neighborhood in Atlanta. Buildings have brick walls and concrete roofs; ground surfaces include concrete streets, grass lawns, and brick courtyards.
+
+![3D neighborhood surface temperatures at peak summer hour](docs/neighborhood_3d_peak.png)
+
+### Time-series
+
+Selected surface temperatures over 3 summer days compared to air temperature. Dark surfaces (roofs, $\alpha = 0.85$) show the largest diurnal swing and peak well above air temperature.
+
+![Surface temperature time-series over 3 summer days](docs/surface_temps_timeseries.png)
+
+### Heatmap
+
+Hour-of-day vs day-of-year heatmap for a concrete street surface ($\alpha = 0.65$). Peak temperatures occur in summer afternoons; nighttime temperatures track close to air temperature year-round.
+
+![Heatmap of concrete street surface temperature](docs/heatmap_street.png)
+
 ## Default neighborhood
 
-The example creates 12 box-shaped buildings of varying height (5–15 m), footprint, and rotation (0°–60°), arranged on a ~200 m grid with concrete streets, grass lawns, and brick courtyards.
+The example creates 12 box-shaped buildings of varying height (5--15 m), footprint, and rotation (0--60 deg), arranged on a ~200 m grid with concrete streets, grass lawns, and brick courtyards.
 
-| Surface type | Material layers | Solar absorptivity |
+| Surface type | Material layers | $\alpha_\text{sol}$ |
 |---|---|---|
 | Concrete street | 1 m subsoil + 200 mm concrete | 0.65 |
 | Brick paving | 1 m subsoil + 100 mm sand + 65 mm brick | 0.70 |
