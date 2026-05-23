@@ -1,0 +1,25 @@
+[project]
+name = "surface-temps"
+version = "0.1.0"
+description = "Frequency-domain admittance method for outdoor surface temperatures"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.24",
+    "pvlib>=0.11",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+]
+
+[tool.setuptools.packages.find]
+include = ["surface_temps*", "examples*"]
+
+[project.scripts]
+surface-temps = "examples.neighborhood:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
