@@ -21,7 +21,7 @@ The driving signal for each surface is the sol-air temperature, which combines c
 
 $$T_{\text{sol}} = \frac{h_c \, T_{\text{air}} + h_r \, T_{\text{sky}} + \alpha \, Q_{\text{sol}}}{h_c + h_r}$$
 
-where $h_c$ is the convective coefficient (W/m$^2$K), $h_r$ is the linearised radiative coefficient (W/m$^2$K), $T_{\text{sky}}$ is the sky radiant temperature (K), $\alpha$ is the solar absorptivity, and $Q_{\text{sol}}$ is the incident solar irradiance (W/m$^2$).
+where $h_c$ is the convective coefficient (W/m²K), $h_r$ is the linearised radiative coefficient (W/m²K), $T_{\text{sky}}$ is the sky radiant temperature (K), $\alpha$ is the solar absorptivity, and $Q_{\text{sol}}$ is the incident solar irradiance (W/m²).
 
 The convective coefficient follows the DOE-2 linear wind model:
 
@@ -35,7 +35,7 @@ $$T_{\text{sky}} = \left( \frac{E_{\text{IR}}}{\varepsilon \, \sigma} \right)^{1
 
 Each material layer is characterised by a $2 \times 2$ complex transfer matrix at angular frequency $\omega = 2\pi / P$:
 
-$$\mathbf{M}_{\text{layer}} = \begin{pmatrix} \cosh(pL) & \dfrac{\sinh(pL)}{\lambda \, p} \\[8pt] \lambda \, p \sinh(pL) & \cosh(pL) \end{pmatrix}$$
+$$\mathbf{M}_{\text{layer}} = \begin{pmatrix} \cosh(pL) & \dfrac{\sinh(pL)}{\lambda \, p} \\ \lambda \, p \sinh(pL) & \cosh(pL) \end{pmatrix}$$
 
 where $p = \sqrt{i\omega / \alpha_d}$, $\alpha_d = \lambda / (\rho c)$ is the thermal diffusivity, $L$ is the layer thickness, and $\lambda$ is the thermal conductivity. The matrix has the property $\det(\mathbf{M}) = 1$.
 
