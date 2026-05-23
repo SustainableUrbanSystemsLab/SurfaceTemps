@@ -55,7 +55,7 @@ At each harmonic $n$, the surface temperature transfer function is:
 
 $$H_n = \frac{1}{1 + \dfrac{m_{1,n} \, R_{so}}{m_{2,n}}}$$
 
-where $m_{1,n}$ and $m_{2,n}$ are the $(1,1)$ and $(1,2)$ entries of $\mathbf{M}_{\text{total}}$ evaluated at the period $P_n = P_{\text{total}} / n$. The mean component is handled separately:
+where $m_{1,n}$ and $m_{2,n}$ are the $(1,1)$ and $(1,2)$ entries of the total transfer matrix evaluated at the harmonic period $P/n$. The mean component is handled separately:
 
 $$\bar{T}_{so} = \bar{T}_{\text{sol}} - U \left( \bar{T}_{\text{sol}} - T_i \right) R_{so}$$
 
