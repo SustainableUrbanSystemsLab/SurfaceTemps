@@ -41,9 +41,9 @@ where $p = \sqrt{i\omega / \alpha_d}$, $\alpha_d = \lambda / (\rho c)$ is the th
 
 For a multi-layer assembly, the total transfer matrix is:
 
-$$\mathbf{M}_{\text{total}} = \mathbf{M}_{R_{si}} \prod_{j=1}^{N} \mathbf{M}_j$$
+$$\mathbf{M}_{\text{total}} = \mathbf{M}_{si} \prod_{j=1}^{N} \mathbf{M}_j$$
 
-where $\mathbf{M}_{R_{si}}$ is the internal surface resistance matrix and the product runs from the innermost to outermost layer. The external surface resistance $R_{so}$ is excluded from the matrix because it is applied as a boundary condition in the solver.
+where $\mathbf{M}_{si}$ is the internal surface resistance matrix and the product runs from the innermost to outermost layer. The external surface resistance $R_{so}$ is excluded from the matrix because it is applied as a boundary condition in the solver.
 
 ### Admittance solver
 
