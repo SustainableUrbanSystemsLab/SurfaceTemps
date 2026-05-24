@@ -114,18 +114,11 @@ def plot_neighborhood_3d(
     all_temps = []
     face_data = []
 
-    for box in geometry.boxes:
-        for face in box.faces():
-            T = results.get(face.name)
-            if T is not None:
-                all_temps.append(T[hour])
-                face_data.append((face.vertices, T[hour]))
-
-    for patch in geometry.ground_patches:
-        T = results.get(patch.name)
+    for name, vertices in geometry.iter_render_faces():
+        T = results.get(name)
         if T is not None:
             all_temps.append(T[hour])
-            face_data.append((patch.vertices, T[hour]))
+            face_data.append((vertices, T[hour]))
 
     if not all_temps:
         return fig
@@ -186,13 +179,8 @@ def render_daily_gif(
 
     all_temps = []
     for h in hours:
-        for box in geometry.boxes:
-            for face in box.faces():
-                T = results.get(face.name)
-                if T is not None:
-                    all_temps.append(T[h])
-        for patch in geometry.ground_patches:
-            T = results.get(patch.name)
+        for name, _ in geometry.iter_render_faces():
+            T = results.get(name)
             if T is not None:
                 all_temps.append(T[h])
 

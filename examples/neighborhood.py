@@ -21,7 +21,15 @@ def main():
 
     print("\nCreating neighborhood geometry...")
     geometry = NeighborhoodGeometry.create_default()
-    print(f"  {len(geometry.boxes)} buildings, {len(geometry.ground_patches)} ground patches")
+    if geometry.mesh_surfaces:
+        building_faces = [s for s in geometry.mesh_surfaces if s.mesh_name == "buildings"]
+        ground_faces = [s for s in geometry.mesh_surfaces if s.mesh_name == "ground"]
+        print(
+            f"  {len(building_faces)} building facets, "
+            f"{len(ground_faces)} ground facets from STL"
+        )
+    else:
+        print(f"  {len(geometry.boxes)} buildings, {len(geometry.ground_patches)} ground patches")
 
     print("\nBuilding surfaces...")
     surfaces = build_surfaces(geometry, weather)
@@ -47,15 +55,20 @@ def main():
 
     # Time series: 3 summer days starting from peak
     start = max(0, peak_hour - 24)
-    sample_surfaces = ["street_0", "grass_0", "brick_0", "B01_wall_180", "B01_roof"]
-    available = [s for s in sample_surfaces if s in results]
+    sample_prefixes = ["street_0", "grass_0", "brick_0", "B01_wall_180", "B01_roof"]
+    available = []
+    for prefix in sample_prefixes:
+        match = next((name for name in results if name.startswith(prefix)), None)
+        if match is not None:
+            available.append(match)
     fig2 = plot_surface_temps(results, weather, start_hour=start, num_hours=72, surface_names=available)
     fig2.savefig("surface_temps_timeseries.png", dpi=150, bbox_inches="tight")
     print("Saved: surface_temps_timeseries.png")
 
     # Heatmap for a concrete street
-    if "street_0" in results:
-        fig3 = plot_heatmap(results, "street_0")
+    street_surface = next((name for name in results if name.startswith("street_0")), None)
+    if street_surface is not None:
+        fig3 = plot_heatmap(results, street_surface)
         fig3.savefig("heatmap_street.png", dpi=150, bbox_inches="tight")
         print("Saved: heatmap_street.png")
 

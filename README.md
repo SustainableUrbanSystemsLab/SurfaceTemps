@@ -2,7 +2,7 @@
 
 Frequency-domain admittance method for computing outdoor surface temperatures, based on [Beckett, Owens, and Acred (SimBuild 2026)](https://doi.org/10.26868/25746308.2026.1312).
 
-The method decomposes the sol-air driving temperature into Fourier harmonics, applies a material-specific transfer matrix at each frequency, and reconstructs the surface temperature via inverse FFT. No mesh, no warm-up period, sub-second computation per surface.
+The method decomposes the sol-air driving temperature into Fourier harmonics, applies a material-specific transfer matrix at each frequency, and reconstructs the surface temperature via inverse FFT. Geometry is read from STL facets, while the thermal solution remains a per-surface admittance calculation with no thermal mesh or warm-up period.
 
 ## Quickstart
 
@@ -12,6 +12,12 @@ uv run python examples/neighborhood.py
 ```
 
 This simulates a full year of hourly surface temperatures for a 12-building neighborhood in Atlanta and produces the figures shown below.
+
+The default geometry is loaded from:
+
+- `data/neighborhood_buildings.stl`
+- `data/neighborhood_ground.stl`
+- `data/neighborhood_surfaces.json`
 
 ## Method
 
@@ -65,6 +71,17 @@ $$T_{so}(t) = \bar{T}_{so} + \text{IFFT}\left[ H_n \cdot \widetilde{T}_{\text{so
 
 Solar position and irradiance transposition are handled by [pvlib](https://pvlib-python.readthedocs.io/). Weather data comes from standard EPW files.
 
+### STL geometry and occlusion
+
+Building and ground facets are loaded from STL files and assigned assemblies, absorptivity, emissivity, and boundary conditions through `data/neighborhood_surfaces.json`.
+
+Occlusion is handled in two places:
+
+- Direct beam solar is blocked when the sun ray from a facet centroid intersects another STL triangle.
+- Diffuse solar and longwave radiant temperature use pyViewFactor view factors with visibility and obstruction checks. Sky view is computed by complementarity against the modeled building and ground facets.
+
+For the checked-in 5 m STL mesh, direct-shadow masks and pyViewFactor view factors are computed on each original rectangular parent surface and applied to its 5 m child triangles. This keeps the annual example practical while preserving the finer rendering and per-triangle thermal solve.
+
 ## Example output
 
 ### 24-hour cycle
@@ -93,7 +110,7 @@ Hour-of-day vs day-of-year heatmap for a concrete street surface ($\alpha = 0.65
 
 ## Default neighborhood
 
-The example creates 12 box-shaped buildings of varying height (5--15 m), footprint, and rotation (0--60 deg), arranged on a ~200 m grid with concrete streets, grass lawns, and brick courtyards.
+The example loads STL files generated from 12 box-shaped buildings of varying height (5--15 m), footprint, and rotation (0--60 deg), arranged on a ~200 m grid with concrete streets, grass lawns, and brick courtyards. Each STL triangle is simulated as its own surface. The checked-in default subdivides rectangular faces to a 5 m target panel size, for 956 building facets and 2,222 ground facets.
 
 | Surface type | Material layers | $\alpha_{\text{sol}}$ |
 |---|---|---|
@@ -111,9 +128,10 @@ surface_temps/
     materials.py        Layer and Assembly transfer matrix computation
     weather.py          EPW loading via pvlib
     solar.py            Sol-air temperature, sky temperature, irradiance transposition
+    radiation.py        Direct sun obstruction and pyViewFactor sky/ground/building factors
     convection.py       Wind-dependent convective heat transfer coefficient
     admittance.py       Core FFT/IFFT solver
-    geometry.py         Box buildings, ground patches, neighborhood layout
+    geometry.py         STL/JSON geometry import plus procedural default generator source
     surfaces.py         Simulation orchestrator
     plotting.py         2D time-series, heatmaps, 3D neighborhood visualization
 ```
@@ -125,6 +143,7 @@ uv run pytest
 ```
 
 Tests verify transfer matrix determinant = 1, steady-state and sinusoidal response correctness, temperature bounds, orientation effects (south walls warmer than north), and absorptivity ordering.
+They also verify STL loading, JSON mapping, view-factor sky obstruction, and lower temperatures for directly shaded surfaces.
 
 ## Dependencies
 
@@ -132,6 +151,10 @@ Tests verify transfer matrix determinant = 1, steady-state and sinusoidal respon
 - pvlib
 - pandas
 - matplotlib
+- pyviewfactor
+- pyvista
+- numba
+- tqdm
 
 ## Reference
 

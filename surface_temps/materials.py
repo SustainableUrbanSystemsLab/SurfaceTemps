@@ -131,3 +131,21 @@ def concrete_roof() -> Assembly:
         ],
         R_si=R_SI_WALL,
     )
+
+
+ASSEMBLY_FACTORIES = {
+    "concrete_ground": concrete_ground,
+    "brick_ground": brick_ground,
+    "grass_ground": grass_ground,
+    "brick_wall": brick_wall,
+    "concrete_roof": concrete_roof,
+}
+
+
+def assembly_from_name(name: str) -> Assembly:
+    """Create an assembly from its JSON mapping name."""
+    try:
+        return ASSEMBLY_FACTORIES[name]()
+    except KeyError as exc:
+        options = ", ".join(sorted(ASSEMBLY_FACTORIES))
+        raise ValueError(f"Unknown assembly '{name}'. Expected one of: {options}") from exc
