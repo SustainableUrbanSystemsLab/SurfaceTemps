@@ -1,6 +1,6 @@
 # SurfaceTemps
 
-Frequency-domain admittance method for computing outdoor surface temperatures, based on [Beckett, Owens, and Acred (SimBuild 2026)](https://doi.org/10.26868/25746308.2026.1312).
+Frequency-domain admittance method for computing outdoor surface temperatures, based on [Beckett, Owens, and Acred (SimBuild 2026)](https://publications.ibpsa.org/conference/paper/?id=simbuild2026_1312).
 
 The method decomposes the sol-air driving temperature into Fourier harmonics, applies a material-specific transfer matrix at each frequency, and reconstructs the surface temperature via inverse FFT. Geometry is read from STL facets, while the thermal solution remains a per-surface admittance calculation with no thermal mesh or warm-up period.
 
