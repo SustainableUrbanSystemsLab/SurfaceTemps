@@ -6,7 +6,7 @@ Frequency-domain admittance method for outdoor surface temperatures. STL geometr
 
 ```bash
 uv pip install -e .          # install (includes pyviewfactor, pyvista, numba, pillow, numpy, pvlib, pandas, matplotlib)
-uv run pytest                # 19 tests, ~5 s; default integration skips full-scene occlusion/view factors
+uv run pytest                # 52 tests, ~25 s; default integration skips full-scene occlusion/view factors
 uv run python examples/neighborhood.py   # full simulation + 3 figures + GIF
 ```
 
@@ -14,13 +14,14 @@ uv run python examples/neighborhood.py   # full simulation + 3 figures + GIF
 
 | File | Responsibility |
 |---|---|
-| `constants.py` | Material property database, Stefan-Boltzmann, R_si / R_so defaults |
+| `constants.py` | Legacy material property database, Stefan-Boltzmann, R_si / R_so defaults |
+| `library.py` | The outdoor material library: loads/validates `data/materials/outdoor_materials.json`, builds assemblies |
 | `materials.py` | `Layer` (transfer matrix), `Assembly` (product of matrices), factory functions |
 | `weather.py` | `load_epw()` → `WeatherData`; solar position cached as property |
 | `solar.py` | `transpose_irradiance()`, component transposition, sun vectors, `sky_temperature()`, `sol_air_temperature()` |
 | `radiation.py` | pyViewFactor view factors, direct sun obstruction, sky/ground/building view factors |
 | `convection.py` | DOE-2 wind model: `h_c = 5.7 + 3.8 * v_wind` |
-| `admittance.py` | `solve_surface_temperature()` — core FFT/IFFT solver |
+| `admittance.py` | `solve_surface_temperature()` — core FFT/IFFT solver; `solve_surface_temperature_variable_h()` — paper Eq. 20-22 |
 | `geometry.py` | `Box`, `Face`, `GroundPatch`, `MeshSurface`, STL/JSON import, procedural default source |
 | `surfaces.py` | `build_surfaces()`, `simulate_all()` — orchestrator |
 | `plotting.py` | `plot_surface_temps()`, `plot_heatmap()`, `plot_neighborhood_3d()`, `render_daily_gif()` |
@@ -34,6 +35,16 @@ uv run python examples/neighborhood.py   # full simulation + 3 figures + GIF
 **Layer order**: `Assembly.layers` runs inside → outside (R_si first, outermost layer last). The matrix product preserves this order: `M = M_si @ M_layer1 @ ... @ M_layerN`.
 
 **Absorptivity ordering**: Without evapotranspiration, higher absorptivity → warmer surface. Grass (α=0.75) is warmer than concrete (α=0.65) in the model. Integration tests verify this.
+
+**Sky temperature has NO emissivity divisor**: `T_sky = (IR/σ)^0.25`. The EPW horizontal-IR field IS the downwelling long-wave flux, so the sky's emissivity is already in it. Dividing by 0.90 (as this used to) inflates T_sky by 7.5 K, leaves the sky warmer than the air a third of the year, and biases every surface ~1.5 K warm. Surface emissivity belongs in `h_r`.
+
+**h_r is derived per surface from ε**, not fixed at 5.0: `h_r = 4εσT³`. 5.0 is right only near ε=0.90. The library contains metals at ε=0.25 and below, where the true h_r is ~1.4 and a hardcoded 5.0 makes them up to 28 K too cool at peak.
+
+**Variable convection (paper Eq. 20-22) is ON by default.** Sol-air divides absorbed solar by hourly `h_e`, but the solver couples through a fixed `1/R_so`; on a calm sunny afternoon that over-injects solar 2.3×. Beware: `R_so=0.04 ≈ 1/mean(h_e)`, so the error hides in the tails, not the mean. **The iteration diverges undamped** (gain `|Δh|/h̄` > 1) — an insulated roof reached 3e4 °C before under-relaxation; `solve_surface_temperature_variable_h` damps adaptively.
+
+**The material library is shared data, not code**: `data/materials/outdoor_materials.json` is canonical and the Eddy3D C# port embeds a byte-identical copy. Entries describe the EXPOSED OUTER LAYER (that is what MRT consumes) plus a substrate stack. A thermally thin outer layer (any metal skin, τ<0.01) MUST carry a substrate or the solve collapses onto the internal boundary.
+
+**Validation lives in `docs/VALIDATION.md`** — the paper audit (including two errors in the paper itself: the Eq. 11 sign and a √2 in Eq. 4/5) and the reasoning behind every tolerance. `tests/reference_fd.py` is an independent time-domain solver; agreement converges at second order to 5e-6 K. Before it existed, injecting the paper's own Eq. 4 variant (11% amplitude error) passed every test.
 
 **Default geometry source**: `NeighborhoodGeometry.create_default()` reads `data/neighborhood_buildings.stl`, `data/neighborhood_ground.stl`, and `data/neighborhood_surfaces.json`. `create_procedural_default()` remains as the source used by `scripts/generate_default_stl.py`.
 

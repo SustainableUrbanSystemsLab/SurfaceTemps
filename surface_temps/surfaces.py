@@ -4,7 +4,10 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from surface_temps.admittance import solve_surface_temperature
+from surface_temps.admittance import (
+    solve_surface_temperature,
+    solve_surface_temperature_variable_h,
+)
 from surface_temps.convection import h_convective
 from surface_temps.geometry import NeighborhoodGeometry
 from surface_temps.materials import Assembly
@@ -15,6 +18,7 @@ from surface_temps.radiation import (
     sunlit_factors,
 )
 from surface_temps.solar import (
+    h_radiative,
     sky_temperature,
     sol_air_temperature,
     transpose_irradiance_components,
@@ -122,11 +126,21 @@ def simulate_all(
     *,
     use_occlusion: bool = True,
     use_view_factors: bool = True,
+    variable_convection: bool = True,
 ) -> dict[str, np.ndarray]:
-    """Run admittance solver for every surface. Returns {name: T_surface(8760)}."""
+    """Run admittance solver for every surface. Returns {name: T_surface(8760)}.
+
+    ``variable_convection`` applies the paper's Eq. 20-22 correction for an hourly surface
+    heat transfer coefficient. It is on by default because without it the absorbed solar is
+    injected through a different h_e than the one the sol-air temperature divided by, which
+    overstates calm sunny afternoons by up to ~9 K at the daily peak.
+    """
     T_sky = sky_temperature(weather)
     h_c = h_convective(weather.wind_speed)
-    h_r = 5.0  # W/m2-K, linearized radiative coefficient
+    # h_r is derived per surface from ITS OWN emissivity, inside the loop below. A single
+    # hardcoded 5.0 is only correct near eps = 0.90; low-emissivity claddings (zinc, aluminium,
+    # weathering steel) sit an order of magnitude lower and would otherwise be modelled as
+    # radiating like masonry.
 
     radiation_context = build_radiation_context(
         surfaces,
@@ -165,11 +179,27 @@ def simulate_all(
         else:
             T_radiant = weather.temp_air
 
-        T_sol = sol_air_temperature(
-            weather.temp_air, T_radiant, Q_sol, surf.absorptivity, h_c, h_r
-        )
+        h_r = h_radiative(surf.emissivity, weather.temp_air)
 
-        T_surface = solve_surface_temperature(T_sol, surf.assembly, surf.T_internal)
+        if variable_convection:
+            # Paper Eq. 20-22. The environmental temperature carries the air/radiant mix; the
+            # absorbed solar and the hourly h_e are handed to the solver so it can reconcile
+            # them against one constant R_so instead of silently mixing two different h_e.
+            h_e = h_c + h_r
+            T_env = (h_c * weather.temp_air + h_r * T_radiant) / h_e
+            T_surface = solve_surface_temperature_variable_h(
+                T_env,
+                surf.absorptivity * Q_sol,
+                h_e,
+                surf.assembly,
+                surf.T_internal,
+            )
+        else:
+            T_sol = sol_air_temperature(
+                weather.temp_air, T_radiant, Q_sol, surf.absorptivity, h_c, h_r
+            )
+            T_surface = solve_surface_temperature(T_sol, surf.assembly, surf.T_internal)
+
         results[surf.name] = T_surface
 
     return results
