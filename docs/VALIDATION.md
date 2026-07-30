@@ -157,5 +157,33 @@ discarded. Latent for the 8760-hour path; now guarded on parity.
 | `tests/test_variable_convection.py` | Eq. 20–22 beats a fixed `R_so`, and stays bounded |
 | `tests/test_crossvalidation_fixture.py` | Keeps the Python↔C# fixture current |
 | `tests/test_material_library.py` | Library coverage, physical ordering, and the traps it must reject |
+| `tests/test_driving_signal.py` | Regression guards for the three fixed defects |
+| `tests/test_shared_data_sync.py` | Digests of the two files shared with the Eddy3D port |
 
-Reproduce the whole thing with `uv run pytest`.
+Reproduce the whole thing with `uv run pytest` (64 tests, ~23 s).
+
+## Proving the suite can tell right from wrong
+
+A green suite means nothing by itself — the previous one passed while the solver carried an 11%
+amplitude error. `scripts/mutation_check.py` injects each error mode we care about and asserts
+the suite catches it:
+
+```
+caught  paper-eq4-xi-admittance                by test_layer_matrix_uses_physical_admittance_not_the_papers_xi
+caught  paper-eq11-sign-flip                   by test_sinusoidal_amplitude_reduced
+caught  conjugated-transfer-function           by test_every_case_still_reproduces
+caught  sky-temp-emissivity-divisor-returns    by test_sky_temperature_is_the_blackbody_equivalent
+caught  hr-hardcoded-again                     by test_h_radiative_scales_with_emissivity
+caught  layer-order-reversed                   by test_every_case_still_reproduces
+caught  rso-double-counted-in-matrix           by test_no_slab_is_a_pure_resistance_divider
+caught  variable-convection-correction-dropped by test_qco_correction_carries_the_improvement
+caught  material-library-emissivity-ignored    by test_properties_are_physically_ordered
+
+All 9 mutations were caught. The suite discriminates.
+```
+
+This is worth re-running after any change to the solver or the driving signal. On its first
+run it found three genuine holes: nothing pinned the sky-temperature physics, nothing pinned
+`h_r` against emissivity on the Python side, and the variable-convection test compared against
+the *old* code path rather than isolating the corrective flux — so zeroing `q_co` left the
+suite green. `tests/test_driving_signal.py` exists to close exactly those.

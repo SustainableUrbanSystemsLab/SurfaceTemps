@@ -6,8 +6,9 @@ Frequency-domain admittance method for outdoor surface temperatures. STL geometr
 
 ```bash
 uv pip install -e .          # install (includes pyviewfactor, pyvista, numba, pillow, numpy, pvlib, pandas, matplotlib)
-uv run pytest                # 52 tests, ~25 s; default integration skips full-scene occlusion/view factors
+uv run pytest                # 64 tests, ~23 s; default integration skips full-scene occlusion/view factors
 uv run python examples/neighborhood.py   # full simulation + 3 figures + GIF
+uv run python scripts/mutation_check.py  # proves the suite catches 9 known error modes
 ```
 
 ## Module map
