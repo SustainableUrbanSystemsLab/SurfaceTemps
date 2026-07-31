@@ -22,9 +22,7 @@ import pytest
 from surface_temps.admittance import solve_surface_temperature
 from surface_temps.materials import Assembly, Layer
 
-FIXTURE = (
-    Path(__file__).resolve().parents[1] / "data" / "crossvalidation" / "admittance_cases.json"
-)
+FIXTURE = Path(__file__).resolve().parents[1] / "data" / "crossvalidation" / "admittance_cases.json"
 
 
 def _load() -> dict:
@@ -59,9 +57,7 @@ def test_every_case_still_reproduces():
         T_driving = np.asarray(case["T_driving"], dtype=float)
         expected = np.asarray(case["T_surface_expected"], dtype=float)
 
-        actual = solve_surface_temperature(
-            T_driving, assembly, T_internal=case["T_internal"]
-        )
+        actual = solve_surface_temperature(T_driving, assembly, T_internal=case["T_internal"])
 
         assert np.max(np.abs(actual - expected)) < 1e-9, (
             f"case '{case['name']}' no longer reproduces. If the solver changed on purpose, "
@@ -84,4 +80,6 @@ def test_cases_actually_exercise_the_solver():
         surf_swing = surf.max() - surf.min()
         if drive_swing > 1.0 and surf_swing < 0.95 * drive_swing:
             damped += 1
-    assert damped >= 5, f"only {damped} cases show damping — fixture is too weak to catch a port bug"
+    assert damped >= 5, (
+        f"only {damped} cases show damping — fixture is too weak to catch a port bug"
+    )

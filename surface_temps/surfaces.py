@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -142,10 +142,14 @@ def simulate_all(
     # weathering steel) sit an order of magnitude lower and would otherwise be modelled as
     # radiating like masonry.
 
-    radiation_context = build_radiation_context(
-        surfaces,
-        compute_view_factors=use_view_factors,
-    ) if (use_occlusion or use_view_factors) else None
+    radiation_context = (
+        build_radiation_context(
+            surfaces,
+            compute_view_factors=use_view_factors,
+        )
+        if (use_occlusion or use_view_factors)
+        else None
+    )
 
     # Cache transposed irradiance by (tilt, azimuth) to avoid redundant pvlib calls.
     irradiance_cache: dict[tuple[float, float], dict[str, np.ndarray]] = {}
@@ -219,9 +223,7 @@ def _surface_irradiance(
         return components["poa_global"]
 
     direct_factor = (
-        sunlit_factors(surface_index, surf, weather, radiation_context)
-        if use_occlusion
-        else 1.0
+        sunlit_factors(surface_index, surf, weather, radiation_context) if use_occlusion else 1.0
     )
     direct = components["poa_direct"] * direct_factor
 
@@ -232,9 +234,7 @@ def _surface_irradiance(
     ideal_ground = ideal_ground_view_factor(surf.tilt)
 
     sky_scale = _view_scale(radiation_context.sky_view[surface_index], ideal_sky)
-    ground_scale = _view_scale(
-        radiation_context.ground_view[surface_index], ideal_ground
-    )
+    ground_scale = _view_scale(radiation_context.ground_view[surface_index], ideal_ground)
 
     return (
         direct

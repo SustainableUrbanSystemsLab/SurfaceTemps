@@ -1,0 +1,105 @@
+name: CI
+
+# Every push and PR. The suite is fast (~25 s) and its whole point is catching physics
+# regressions, so there is nothing to gain from running it selectively.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A new push supersedes an in-flight run on the same ref.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 is the floor declared in pyproject; 3.13 guards against the next release
+        # breaking us silently.
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install
+        run: uv sync --all-extras --dev
+
+      - name: Run tests
+        run: uv run pytest -q --junit-xml=pytest-results.xml
+
+      - name: Publish test summary
+        # Runs even when the tests fail — that is exactly when the summary is wanted.
+        if: always()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: pytest-results.xml
+          include_passed: false
+          detailed_summary: true
+          fail_on_failure: false
+
+  mutation:
+    # Proves the suite can still tell right from wrong. It injects nine known error modes
+    # (the paper's Eq. 4 sqrt(2) variant, its Eq. 11 sign flip, a conjugated transfer
+    # function, reversed layer order, and the fixed defects) and fails if ANY survives.
+    #
+    # This exists because the suite once passed while the solver carried an 11% amplitude
+    # error, and because its first run found three genuine holes. It runs the full suite
+    # ten times over, so it is kept to one Python version.
+    name: mutation check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install
+        run: uv sync --all-extras --dev
+
+      - name: Verify the suite catches known error modes
+        run: uv run python scripts/mutation_check.py
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Ruff
+        run: uvx ruff check .
+
+      - name: Ruff format
+        run: uvx ruff format --check .

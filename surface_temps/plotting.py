@@ -3,11 +3,11 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-import numpy as np
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.colors import BoundaryNorm
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import matplotlib.cm as cm
 from PIL import Image
 
 from surface_temps.geometry import NeighborhoodGeometry
@@ -154,9 +154,7 @@ def plot_neighborhood_3d(
 
     sm = cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cb = plt.colorbar(
-        sm, ax=ax, label="Surface temperature (°C)", shrink=0.6, pad=0.1
-    )
+    cb = plt.colorbar(sm, ax=ax, label="Surface temperature (°C)", shrink=0.6, pad=0.1)
     cb.set_ticks(bounds)
 
     ax.set_title(f"Neighborhood surface temperatures — hour {hour}")
@@ -190,8 +188,14 @@ def render_daily_gif(
     frames: list[Image.Image] = []
     for h in hours:
         fig = plot_neighborhood_3d(
-            geometry, results, hour=h,
-            vmin=vmin, vmax=vmax, elev=elev, azim=azim, cmap_name=cmap_name,
+            geometry,
+            results,
+            hour=h,
+            vmin=vmin,
+            vmax=vmax,
+            elev=elev,
+            azim=azim,
+            cmap_name=cmap_name,
         )
         hour_of_day = h % 24
         fig.axes[0].set_title(f"Surface temperatures — {hour_of_day:02d}:00")

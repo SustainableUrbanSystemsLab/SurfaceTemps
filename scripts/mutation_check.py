@@ -98,7 +98,7 @@ MUTATIONS = [
     Mutation(
         name="material-library-emissivity-ignored",
         path=REPO / "surface_temps" / "library.py",
-        old="                emissivity=float(entry[\"emissivity\"]),",
+        old='                emissivity=float(entry["emissivity"]),',
         new="                emissivity=0.90,",
         why="every material forced to masonry emissivity, erasing the metals' distinction",
     ),
@@ -108,7 +108,9 @@ MUTATIONS = [
 def run_suite() -> tuple[bool, str]:
     proc = subprocess.run(
         ["uv", "run", "pytest", "-x", "-q", "--no-header", "-p", "no:cacheprovider"],
-        cwd=REPO, capture_output=True, text=True,
+        cwd=REPO,
+        capture_output=True,
+        text=True,
     )
     return proc.returncode == 0, proc.stdout + proc.stderr
 
@@ -137,8 +139,10 @@ def main() -> int:
         try:
             source = m.path.read_text()
             if m.old not in source:
-                print(f"  SKIP  {m.name}: anchor text not found in {m.path.name} "
-                      "(the code moved; update this mutation)")
+                print(
+                    f"  SKIP  {m.name}: anchor text not found in {m.path.name} "
+                    "(the code moved; update this mutation)"
+                )
                 survivors.append((m, "anchor-missing"))
                 continue
             m.path.write_text(source.replace(m.old, m.new, 1))

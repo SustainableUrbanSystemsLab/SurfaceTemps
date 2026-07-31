@@ -1,0 +1,79 @@
+name: Release
+
+# Semantic release runs only on main, and only after CI has gone green there — a release
+# built from a red commit is worse than no release.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Compute the next version and changelog without tagging or publishing"
+        type: boolean
+        default: true
+
+concurrency:
+  # Never let two releases race: they would both compute the same next version.
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: semantic release
+    runs-on: ubuntu-latest
+    # Skip when triggered by a FAILED CI run. workflow_dispatch has no originating run, so
+    # the conclusion is empty and the second clause lets a manual run through.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    permissions:
+      contents: write        # create the tag, the commit and the GitHub release
+      issues: write          # comment on released issues
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Semantic release needs the full history to find the previous tag and to work out
+          # which commits belong to this release.
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Python Semantic Release
+        id: release
+        uses: python-semantic-release/python-semantic-release@v9
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # A manual run defaults to a dry run so the next version can be inspected safely.
+          root_options: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '-vv --noop' || '-vv' }}
+
+      - name: Publish the GitHub release
+        # Only when a version was actually released — most CI runs change nothing releasable.
+        if: steps.release.outputs.released == 'true'
+        uses: python-semantic-release/publish-action@v9
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.release.outputs.tag }}
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.release.outputs.released }}" = "true" ]; then
+            echo "Released ${{ steps.release.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No release: no commits since the last tag warranted a version bump." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Versions are driven by Conventional Commits — \`fix:\` bumps the patch," >> "$GITHUB_STEP_SUMMARY"
+            echo "\`feat:\` the minor, and \`!\`/BREAKING CHANGE the major." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+# NOTE: publishing to PyPI is deliberately NOT wired up here. It needs either a trusted-publisher
+# configuration on PyPI or an API token in repository secrets, and it pushes artefacts to a public
+# index under this project's name — both decisions for a maintainer to make, not defaults to
+# inherit. To add it later: create the PyPI trusted publisher for this repo/workflow, then append
+# a job with `permissions: id-token: write` using pypa/gh-action-pypi-publish, gated on
+# `steps.release.outputs.released == 'true'`.

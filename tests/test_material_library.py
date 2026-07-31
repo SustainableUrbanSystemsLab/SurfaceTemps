@@ -107,7 +107,9 @@ def test_assemblies_build_and_run(lib):
         assert assembly.layers, f"{m.id} produced no layers"
         T = solve_surface_temperature(T_driving, assembly, T_internal=18.0)
         assert np.all(np.isfinite(T)), f"{m.id} produced non-finite temperatures"
-        assert -60.0 < T.min() and T.max() < 120.0, f"{m.id} left the plausible range: {T.min()}..{T.max()}"
+        assert -60.0 < T.min() and T.max() < 120.0, (
+            f"{m.id} left the plausible range: {T.min()}..{T.max()}"
+        )
 
 
 def test_assembly_layer_order_is_inside_to_outside(lib):

@@ -1,7 +1,6 @@
-import numpy as np
 import pytest
 
-from surface_temps.materials import Assembly, Layer, concrete_ground, brick_wall
+from surface_temps.materials import Assembly, Layer, brick_wall, concrete_ground
 
 
 class TestLayer:

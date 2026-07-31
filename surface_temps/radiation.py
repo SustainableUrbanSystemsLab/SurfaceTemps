@@ -223,9 +223,7 @@ def _polydata_from_vertices(polygons: list[np.ndarray]):
 
 
 def _convex_planar_hull(surfaces: list[Any]) -> np.ndarray:
-    vertices = np.vstack(
-        [np.asarray(surface.face_vertices, dtype=float) for surface in surfaces]
-    )
+    vertices = np.vstack([np.asarray(surface.face_vertices, dtype=float) for surface in surfaces])
     vertices = np.unique(np.round(vertices, decimals=8), axis=0)
 
     normal = _face_normal(np.asarray(surfaces[0].face_vertices, dtype=float))
@@ -256,10 +254,9 @@ def _convex_hull_indices(points_2d: np.ndarray) -> list[int]:
     order = sorted(range(len(points_2d)), key=lambda idx: (points_2d[idx, 0], points_2d[idx, 1]))
 
     def cross(o, a, b):
-        return (
-            (points_2d[a, 0] - points_2d[o, 0]) * (points_2d[b, 1] - points_2d[o, 1])
-            - (points_2d[a, 1] - points_2d[o, 1]) * (points_2d[b, 0] - points_2d[o, 0])
-        )
+        return (points_2d[a, 0] - points_2d[o, 0]) * (points_2d[b, 1] - points_2d[o, 1]) - (
+            points_2d[a, 1] - points_2d[o, 1]
+        ) * (points_2d[b, 0] - points_2d[o, 0])
 
     lower: list[int] = []
     for idx in order:

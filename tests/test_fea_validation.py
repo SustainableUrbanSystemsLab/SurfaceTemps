@@ -17,6 +17,8 @@ documents why.
 
 from __future__ import annotations
 
+import itertools
+
 import numpy as np
 import pytest
 
@@ -39,8 +41,8 @@ def _fd_for(assembly: Assembly, T_driving, n_cells=80, substeps=80, T_env_fn=Non
     the surface response by 0.48 K when this harness was first written.
     """
     layers = [
-        FdLayer(l.thickness, l.conductivity, l.density, l.specific_heat, n_cells)
-        for l in reversed(assembly.layers)
+        FdLayer(layer.thickness, layer.conductivity, layer.density, layer.specific_heat, n_cells)
+        for layer in reversed(assembly.layers)
     ]
     return solve_fd(
         np.asarray(T_driving, dtype=float),
@@ -84,11 +86,13 @@ def test_finite_difference_agreement_converges_second_order():
         errors.append(float(np.max(np.abs(T_freq - T_fd))))
 
     assert errors[0] > errors[1] > errors[2], f"not converging: {errors}"
-    for coarse, fine in zip(errors, errors[1:]):
+    for coarse, fine in itertools.pairwise(errors):
         assert 3.0 < coarse / fine < 5.0, f"expected ~4x per refinement, got {coarse / fine:.2f}"
 
 
-@pytest.mark.parametrize("factory", [brick_wall, concrete_roof], ids=["brick_wall", "concrete_roof"])
+@pytest.mark.parametrize(
+    "factory", [brick_wall, concrete_roof], ids=["brick_wall", "concrete_roof"]
+)
 def test_real_multilayer_assemblies_match_finite_difference(factory):
     """Multi-layer build-ups agree too — this is what pins the layer ORDER and the interfaces."""
     n = 24 * 8
@@ -111,12 +115,17 @@ def test_reversing_layer_order_is_detectable():
 
     correct = _fd_for(assembly, T_driving, n_cells=40, substeps=60, T_env_fn=driver)
     flipped_layers = [
-        FdLayer(l.thickness, l.conductivity, l.density, l.specific_heat, 40)
-        for l in assembly.layers  # deliberately NOT reversed
+        FdLayer(layer.thickness, layer.conductivity, layer.density, layer.specific_heat, 40)
+        for layer in assembly.layers  # deliberately NOT reversed
     ]
     flipped = solve_fd(
-        T_driving, flipped_layers, R_so=assembly.R_so, R_si=assembly.R_si,
-        T_internal=0.0, substeps=60, T_env_fn=driver,
+        T_driving,
+        flipped_layers,
+        R_so=assembly.R_so,
+        R_si=assembly.R_si,
+        T_internal=0.0,
+        substeps=60,
+        T_env_fn=driver,
     )
 
     assert np.max(np.abs(correct - flipped)) > 0.1, "layer order has no effect — harness is inert"

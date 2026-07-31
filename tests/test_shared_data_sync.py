@@ -23,22 +23,27 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 
-# Keep in lockstep with Radiance.Core.Tests/TestSharedDataSync.cs.
+# Repo-relative path -> expected sha256. Keep in lockstep with
+# Radiance.Core.Tests/TestSharedDataSync.cs, which asserts the same digests.
 EXPECTED = {
-    REPO / "data" / "materials" / "outdoor_materials.json":
-        "0b669044bdd0a9ffb7ec8bc9db40b59ce7b66a28043bfd64bf6f52b2e0ff5adb",
-    REPO / "data" / "crossvalidation" / "admittance_cases.json":
-        "75bd85ac0b55bf079a87f3cec0f902981bc4c38ce65388f7ca08242836ce61fe",
+    "data/materials/outdoor_materials.json": (
+        "0b669044bdd0a9ffb7ec8bc9db40b59ce7b66a28043bfd64bf6f52b2e0ff5adb"
+    ),
+    "data/crossvalidation/admittance_cases.json": (
+        "75bd85ac0b55bf079a87f3cec0f902981bc4c38ce65388f7ca08242836ce61fe"
+    ),
 }
 
 
-@pytest.mark.parametrize("path", list(EXPECTED), ids=lambda p: p.name)
-def test_shared_file_digest_is_pinned(path: Path):
+@pytest.mark.parametrize("relative_path", list(EXPECTED), ids=lambda p: Path(p).name)
+def test_shared_file_digest_is_pinned(relative_path: str):
+    path = REPO / relative_path
     assert path.exists(), f"{path} is missing"
+
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    assert digest == EXPECTED[path], (
+    assert digest == EXPECTED[relative_path], (
         f"{path.name} changed.\n"
-        f"  expected {EXPECTED[path]}\n"
+        f"  expected {EXPECTED[relative_path]}\n"
         f"  actual   {digest}\n"
         "If the change is intended: update this digest, copy the file into "
         "Eddy3D/Radiance.Core/Resources/, and update the matching digest in "

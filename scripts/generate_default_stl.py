@@ -46,7 +46,9 @@ def _building_triangles(geometry: NeighborhoodGeometry) -> tuple[list[np.ndarray
         for face in box.faces():
             surface_type = "roof" if face.tilt == 0 else "wall"
             assembly = "concrete_roof" if surface_type == "roof" else "brick_wall"
-            absorptivity = box.roof_absorptivity if surface_type == "roof" else box.wall_absorptivity
+            absorptivity = (
+                box.roof_absorptivity if surface_type == "roof" else box.wall_absorptivity
+            )
             emissivity = box.roof_emissivity if surface_type == "roof" else box.wall_emissivity
 
             for local_index, triangle in enumerate(_triangulate(face.vertices)):
@@ -146,14 +148,10 @@ def _write_ascii_stl(path: Path, solid_name: str, triangles: list[np.ndarray]) -
     lines = [f"solid {solid_name}"]
     for triangle in triangles:
         normal = _normal(triangle)
-        lines.append(
-            f"  facet normal {normal[0]:.12g} {normal[1]:.12g} {normal[2]:.12g}"
-        )
+        lines.append(f"  facet normal {normal[0]:.12g} {normal[1]:.12g} {normal[2]:.12g}")
         lines.append("    outer loop")
         for vertex in triangle:
-            lines.append(
-                f"      vertex {vertex[0]:.12g} {vertex[1]:.12g} {vertex[2]:.12g}"
-            )
+            lines.append(f"      vertex {vertex[0]:.12g} {vertex[1]:.12g} {vertex[2]:.12g}")
         lines.append("    endloop")
         lines.append("  endfacet")
     lines.append(f"endsolid {solid_name}")

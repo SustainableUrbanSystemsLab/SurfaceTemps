@@ -7,9 +7,7 @@ from surface_temps.constants import STEFAN_BOLTZMANN
 from surface_temps.weather import WeatherData
 
 
-def transpose_irradiance(
-    weather: WeatherData, tilt: float, azimuth: float
-) -> np.ndarray:
+def transpose_irradiance(weather: WeatherData, tilt: float, azimuth: float) -> np.ndarray:
     """Plane-of-array irradiance for a surface at given tilt and azimuth (W/m2)."""
     return transpose_irradiance_components(weather, tilt, azimuth)["poa_global"]
 
