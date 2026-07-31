@@ -30,8 +30,7 @@ def main():
         building_faces = [s for s in geometry.mesh_surfaces if s.mesh_name == "buildings"]
         ground_faces = [s for s in geometry.mesh_surfaces if s.mesh_name == "ground"]
         print(
-            f"  {len(building_faces)} building facets, "
-            f"{len(ground_faces)} ground facets from STL"
+            f"  {len(building_faces)} building facets, {len(ground_faces)} ground facets from STL"
         )
     else:
         print(f"  {len(geometry.boxes)} buildings, {len(geometry.ground_patches)} ground patches")
@@ -47,7 +46,9 @@ def main():
     # Summary statistics
     print("\n--- Summary ---")
     for name, T in sorted(results.items()):
-        print(f"  {name:25s}  mean={np.mean(T):6.1f}°C  max={np.max(T):6.1f}°C  min={np.min(T):6.1f}°C")
+        print(
+            f"  {name:25s}  mean={np.mean(T):6.1f}°C  max={np.max(T):6.1f}°C  min={np.min(T):6.1f}°C"
+        )
 
     # Find peak summer hour (hottest air temperature hour)
     peak_hour = int(np.argmax(weather.temp_air))
@@ -66,7 +67,9 @@ def main():
         match = next((name for name in results if name.startswith(prefix)), None)
         if match is not None:
             available.append(match)
-    fig2 = plot_surface_temps(results, weather, start_hour=start, num_hours=72, surface_names=available)
+    fig2 = plot_surface_temps(
+        results, weather, start_hour=start, num_hours=72, surface_names=available
+    )
     fig2.savefig("surface_temps_timeseries.png", dpi=150, bbox_inches="tight")
     print("Saved: surface_temps_timeseries.png")
 
@@ -80,7 +83,9 @@ def main():
     # Animated GIF: 24h cycle on the peak day
     peak_day_start = (peak_hour // 24) * 24
     print(f"\nRendering 24-hour GIF (day starting at hour {peak_day_start})...")
-    render_daily_gif(geometry, results, day_start_hour=peak_day_start, output_path="neighborhood_24h.gif")
+    render_daily_gif(
+        geometry, results, day_start_hour=peak_day_start, output_path="neighborhood_24h.gif"
+    )
     print("Saved: neighborhood_24h.gif")
 
     plt.show()

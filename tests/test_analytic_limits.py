@@ -149,8 +149,10 @@ def test_thicker_mass_damps_the_daily_swing_more():
 
 def test_u_value_matches_series_resistance():
     """The steady-state U-value is 1/sum(R), including both surface resistances."""
-    layers = [Layer(thickness=0.1, **CONCRETE), Layer(thickness=0.05, conductivity=0.025,
-                                                      density=30, specific_heat=1400)]
+    layers = [
+        Layer(thickness=0.1, **CONCRETE),
+        Layer(thickness=0.05, conductivity=0.025, density=30, specific_heat=1400),
+    ]
     assembly = Assembly(layers=layers, R_si=R_SI, R_so=R_SO)
 
     R = R_SI + R_SO + 0.1 / 1.40 + 0.05 / 0.025

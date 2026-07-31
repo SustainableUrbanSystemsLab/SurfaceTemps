@@ -154,9 +154,7 @@ def plot_neighborhood_3d(
 
     sm = cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cb = plt.colorbar(
-        sm, ax=ax, label="Surface temperature (°C)", shrink=0.6, pad=0.1
-    )
+    cb = plt.colorbar(sm, ax=ax, label="Surface temperature (°C)", shrink=0.6, pad=0.1)
     cb.set_ticks(bounds)
 
     ax.set_title(f"Neighborhood surface temperatures — hour {hour}")
@@ -190,8 +188,14 @@ def render_daily_gif(
     frames: list[Image.Image] = []
     for h in hours:
         fig = plot_neighborhood_3d(
-            geometry, results, hour=h,
-            vmin=vmin, vmax=vmax, elev=elev, azim=azim, cmap_name=cmap_name,
+            geometry,
+            results,
+            hour=h,
+            vmin=vmin,
+            vmax=vmax,
+            elev=elev,
+            azim=azim,
+            cmap_name=cmap_name,
         )
         hour_of_day = h % 24
         fig.axes[0].set_title(f"Surface temperatures — {hour_of_day:02d}:00")

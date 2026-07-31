@@ -57,8 +57,7 @@ class OutdoorMaterial:
         whatever sits behind it.
         """
         return self.thickness * math.sqrt(
-            math.pi * self.density * self.specific_heat
-            / (DIURNAL_PERIOD_S * self.conductivity)
+            math.pi * self.density * self.specific_heat / (DIURNAL_PERIOD_S * self.conductivity)
         )
 
     @property

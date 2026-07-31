@@ -45,9 +45,15 @@ def _fd_truth(T_env, Q_absorbed, h_e, assembly, T_internal, n_cells=40, substeps
         for layer in reversed(assembly.layers)
     ]
     return solve_fd(
-        T_env, layers, R_so=1.0 / float(np.mean(h_e)), R_si=assembly.R_si,
-        T_internal=T_internal, substeps=substeps, n_cycles=8,
-        h_e_series=h_e, q_absorbed_series=Q_absorbed,
+        T_env,
+        layers,
+        R_so=1.0 / float(np.mean(h_e)),
+        R_si=assembly.R_si,
+        T_internal=T_internal,
+        substeps=substeps,
+        n_cycles=8,
+        h_e_series=h_e,
+        q_absorbed_series=Q_absorbed,
     )
 
 

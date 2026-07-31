@@ -90,7 +90,9 @@ def test_finite_difference_agreement_converges_second_order():
         assert 3.0 < coarse / fine < 5.0, f"expected ~4x per refinement, got {coarse / fine:.2f}"
 
 
-@pytest.mark.parametrize("factory", [brick_wall, concrete_roof], ids=["brick_wall", "concrete_roof"])
+@pytest.mark.parametrize(
+    "factory", [brick_wall, concrete_roof], ids=["brick_wall", "concrete_roof"]
+)
 def test_real_multilayer_assemblies_match_finite_difference(factory):
     """Multi-layer build-ups agree too — this is what pins the layer ORDER and the interfaces."""
     n = 24 * 8
@@ -117,8 +119,13 @@ def test_reversing_layer_order_is_detectable():
         for layer in assembly.layers  # deliberately NOT reversed
     ]
     flipped = solve_fd(
-        T_driving, flipped_layers, R_so=assembly.R_so, R_si=assembly.R_si,
-        T_internal=0.0, substeps=60, T_env_fn=driver,
+        T_driving,
+        flipped_layers,
+        R_so=assembly.R_so,
+        R_si=assembly.R_si,
+        T_internal=0.0,
+        substeps=60,
+        T_env_fn=driver,
     )
 
     assert np.max(np.abs(correct - flipped)) > 0.1, "layer order has no effect — harness is inert"
