@@ -87,11 +87,60 @@ def test_correction_is_a_no_op_when_h_is_already_constant():
     assert np.max(np.abs(plain - corrected)) < 1e-9
 
 
-def test_insulated_roof_stays_bounded():
-    """The divergence guard: an insulated build-up ran away to 3e4 degC before damping.
+def test_every_library_material_converges_on_real_weather():
+    """The check that motivated solving this as a linear system instead of iterating.
 
-    The fixed point has gain |dh|/h_bar, which exceeds 1 for a realistic wind series, so any
-    surface that closely tracks its driving temperature diverges without under-relaxation.
+    Picard gain is |dh|/h_bar * |H|, and on Atlanta TMY3 that exceeds 1 for EVERY material in
+    the library — so plain iteration diverges everywhere, and a damped version silently
+    returned an unconverged answer for the metal roofs after fifty passes. The direct solve
+    must satisfy the fixed point for all of them.
+    """
+    from dataclasses import replace
+
+    from surface_temps.convection import h_convective
+    from surface_temps.library import load_library
+    from surface_temps.solar import h_radiative, sky_temperature, transpose_irradiance
+    from surface_temps.weather import load_epw
+
+    weather = load_epw("data/atlanta_tmy3.epw")
+    library = load_library()
+    T_air = np.asarray(weather.temp_air, dtype=float)
+    T_sky = sky_temperature(weather)
+    h_c = h_convective(weather.wind_speed)
+    Q = transpose_irradiance(weather, 0.0, 180.0)
+
+    worst = 0.0
+    for material in library:
+        h_r = h_radiative(material.emissivity, T_air)
+        h_e = h_c + h_r
+        h_bar = float(np.mean(h_e))
+        T_env = (h_c * T_air + h_r * T_sky) / h_e
+        Q_absorbed = material.absorptivity * Q
+        assembly = library.assembly(material.id)
+
+        T_surface = solve_surface_temperature_variable_h(
+            T_env, Q_absorbed, h_e, assembly, T_internal=18.0
+        )
+        assert np.all(np.isfinite(T_surface)), material.id
+
+        # Independently re-impose the fixed point: feeding q_co back must reproduce T_surface.
+        q_co = (h_e - h_bar) * (T_env - T_surface)
+        check = solve_surface_temperature(
+            T_env + (Q_absorbed + q_co) / h_bar,
+            replace(assembly, R_so=1.0 / h_bar),
+            18.0,
+        )
+        worst = max(worst, float(np.max(np.abs(check - T_surface))))
+
+    assert worst < 1e-3, f"worst fixed-point residual {worst:.2e} K across the library"
+
+
+def test_insulated_roof_stays_bounded():
+    """An insulated build-up ran away to 3e4 degC under plain iteration.
+
+    Its Picard gain |dh|/h_bar * |H| is well above 1 because an insulated surface tracks its
+    driving temperature closely (|H| ~ 1). The direct linear solve has no such failure mode,
+    and this pins that it stays physical.
     """
     from surface_temps.materials import concrete_roof
 

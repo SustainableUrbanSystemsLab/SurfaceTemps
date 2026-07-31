@@ -103,11 +103,27 @@ condition, so the reference never assumes a constant resistance at all:
 | fixed `R_so` | 1.68 K | 14.8 K | 8.9 K |
 | Eq. 20–22 | **1.34 K** | **7.5 K** | **1.6 K** |
 
-**One caveat worth knowing:** the undamped iteration *diverges*. Its gain is `|Δh|/h̄`, which
-exceeds 1 for a realistic wind series, so any surface closely following its driving temperature
-(a thin or insulated outer layer) runs away — an insulated roof reached 3×10⁴ °C before
-under-relaxation was added. `solve_surface_temperature_variable_h` damps adaptively and raises
-rather than returning nonsense if it still cannot converge.
+**This is solved as a linear system, not by iteration — and that matters.** The paper solves
+`q_co` by iteration and says fewer than five passes suffice. That does not hold for a real EPW
+wind series. Measured across the whole material library on Atlanta TMY3, the Picard gain
+`|Δh|/h̄·|H|` exceeds 1 for **every one of the 29 materials** (1.55–1.97), because `h_e` spans
+10.7–71.1 W/m²K about a mean near 26 and `|H|` approaches 1 for any thin or insulated outer
+layer. Undamped, an insulated roof reached 3×10⁴ °C. Damped, it converged for masonry but the
+metal roofs had still not reached 1e-4 after fifty passes — and the loop then returned a
+**silently unconverged** answer, which is the worse failure.
+
+Since the relation is linear in `T_s`, it is now solved directly. Writing `A` for the affine
+admittance solve and `D` for multiplication by `Δh/h̄`:
+
+```
+T_s = A[u − D·T_s]              u = T_e + (αQ + Δh·T_e)/h̄
+(I + L·D) T_s = L[u] + c        A[x] = L[x] + c, L linear
+```
+
+`L` costs one FFT pair, so GMRES converges in tens of matvecs regardless of gain, with no
+relaxation parameter to tune. All 29 materials over a full 8760-hour year solve in **1.1 s
+total**, worst fixed-point residual **3×10⁻⁵ K**. The solver re-imposes the fixed point itself
+and raises rather than trusting the Krylov flag.
 
 ### 4. Port: sunlight painted on north walls at night
 

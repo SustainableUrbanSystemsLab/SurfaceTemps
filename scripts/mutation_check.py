@@ -91,8 +91,8 @@ MUTATIONS = [
     Mutation(
         name="variable-convection-correction-dropped",
         path=REPO / "surface_temps" / "admittance.py",
-        old="        q_co = delta_h * (T_environmental - T_surface)",
-        new="        q_co = np.zeros_like(np.asarray(T_environmental, dtype=float))",
+        old="    scale = delta_h / h_bar",
+        new="    scale = np.zeros_like(delta_h)",
         why="paper Eq. 20-22 silently disabled: calm sunny peaks over-predicted again",
     ),
     Mutation(
