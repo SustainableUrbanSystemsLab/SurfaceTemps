@@ -28,3 +28,64 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+# Pin the target and the ruleset explicitly: ruff's defaults change between releases, and CI
+# that silently gains rules is CI that fails for reasons unrelated to the change under review.
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",   # line length is handled by the formatter, not the linter
+    "B008",   # function call in default argument — used deliberately for numpy defaults
+    "RUF002", # "ambiguous" Greek in docstrings is deliberate: alpha, rho, lambda are the
+              # symbols the paper and the physics literature use, and spelling them out would
+              # make the derivations harder to check against the source.
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests build parameter sets with dict(...) for readability, and re-import inside test bodies
+# to keep each test's dependencies visible at its point of use.
+"tests/*" = [
+    "B011",
+    "RUF059",  # fixture tuples are unpacked with consistent names across tests, even where
+               # an individual test does not read every element
+]
+
+[tool.semantic_release]
+# Versions are derived from Conventional Commit messages, so the version here and the git tags
+# cannot disagree — there is no manual bump step to forget.
+#   fix: -> patch      feat: -> minor      feat!: / BREAKING CHANGE: -> major
+# Anything else (docs:, test:, chore:, refactor:) ships without cutting a release.
+version_toml = ["pyproject.toml:project.version"]
+branch = "main"
+build_command = ""          # no wheel is published yet; see the note at the end of release.yml
+tag_format = "v{version}"
+# Stay in 0.x until someone deliberately declares 1.0. BOTH of these are needed and both were
+# verified against real history: without allow_zero_version the first release is forced to
+# 1.0.0 regardless, and without major_on_zero=false the first `feat:` promotes 0.x to 1.0.0.
+# Declaring 1.0 is a statement about API stability, not a side effect of adding a feature.
+allow_zero_version = true
+major_on_zero = false
+commit_message = "chore(release): {version} [skip ci]"
+
+[tool.semantic_release.changelog]
+exclude_commit_patterns = ["^chore\\(release\\):"]
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = ["feat", "fix", "perf", "docs", "style", "refactor", "test", "build", "ci", "chore"]
+minor_tags = ["feat"]
+# Only these bump the version; a docs typo should not mint a release.
+patch_tags = ["fix", "perf"]
+
+[tool.semantic_release.remote]
+type = "github"

@@ -143,7 +143,7 @@ def solve_fd(
     if np.isfinite(g_in):
         T[-1] = T_internal
 
-    def source(T_env: float, g_outer: float = None, q_extra: float = 0.0) -> np.ndarray:
+    def source(T_env: float, g_outer: float | None = None, q_extra: float = 0.0) -> np.ndarray:
         b = np.zeros(n_nodes)
         b[0] += (g_out if g_outer is None else g_outer) * T_env + q_extra
         if np.isfinite(g_in):
@@ -165,7 +165,7 @@ def solve_fd(
 
     surface = np.zeros(n_steps)
     previous = None
-    for cycle in range(n_cycles):
+    for _cycle in range(n_cycles):
         for step in range(n_steps):
             surface[step] = T[0]
             idx = step % n_steps

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from surface_temps.admittance import solve_surface_temperature
 from surface_temps.materials import Assembly, Layer

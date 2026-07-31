@@ -155,13 +155,13 @@ class NeighborhoodGeometry:
         ]
 
         boxes = []
-        for cx, cy, w, l, h, rot, label in box_specs:
+        for cx, cy, w, length, h, rot, label in box_specs:
             boxes.append(
                 Box(
                     center_x=cx,
                     center_y=cy,
                     width=w,
-                    length=l,
+                    length=length,
                     height=h,
                     rotation=rot,
                     label=label,

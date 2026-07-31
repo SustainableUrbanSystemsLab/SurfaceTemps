@@ -41,8 +41,8 @@ def _scenario(n=24 * 10, calm_afternoons=True):
 
 def _fd_truth(T_env, Q_absorbed, h_e, assembly, T_internal, n_cells=40, substeps=20):
     layers = [
-        FdLayer(l.thickness, l.conductivity, l.density, l.specific_heat, n_cells)
-        for l in reversed(assembly.layers)
+        FdLayer(layer.thickness, layer.conductivity, layer.density, layer.specific_heat, n_cells)
+        for layer in reversed(assembly.layers)
     ]
     return solve_fd(
         T_env, layers, R_so=1.0 / float(np.mean(h_e)), R_si=assembly.R_si,

@@ -3,11 +3,11 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-import numpy as np
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.colors import BoundaryNorm
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import matplotlib.cm as cm
 from PIL import Image
 
 from surface_temps.geometry import NeighborhoodGeometry

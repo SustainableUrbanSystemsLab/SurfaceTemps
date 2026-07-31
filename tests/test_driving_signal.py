@@ -134,8 +134,8 @@ def test_qco_correction_carries_the_improvement():
 
     truth = solve_fd(
         T_env,
-        [FdLayer(l.thickness, l.conductivity, l.density, l.specific_heat, 40)
-         for l in reversed(assembly.layers)],
+        [FdLayer(layer.thickness, layer.conductivity, layer.density, layer.specific_heat, 40)
+         for layer in reversed(assembly.layers)],
         R_so=1.0 / h_bar, R_si=assembly.R_si, T_internal=22.0,
         substeps=20, n_cycles=8, h_e_series=h_e, q_absorbed_series=Q_absorbed,
     )

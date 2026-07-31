@@ -6,7 +6,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from surface_temps.geometry import NeighborhoodGeometry
-from surface_temps.plotting import plot_heatmap, plot_neighborhood_3d, plot_surface_temps, render_daily_gif
+from surface_temps.plotting import (
+    plot_heatmap,
+    plot_neighborhood_3d,
+    plot_surface_temps,
+    render_daily_gif,
+)
 from surface_temps.surfaces import build_surfaces, simulate_all
 from surface_temps.weather import load_epw
 
