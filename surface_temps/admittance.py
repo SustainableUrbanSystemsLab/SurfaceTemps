@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 import numpy as np
+from scipy.sparse.linalg import LinearOperator, gmres
 
 from surface_temps.materials import Assembly
 
@@ -46,7 +47,7 @@ def solve_surface_temperature_variable_h(
     h_e: np.ndarray,
     assembly: Assembly,
     T_internal: float = 0.0,
-    max_iterations: int = 20,
+    max_iterations: int = 200,
     tol: float = 1e-4,
 ) -> np.ndarray:
     """Surface temperature with an HOURLY surface heat transfer coefficient (paper Eq. 20-22).
@@ -64,8 +65,14 @@ def solve_surface_temperature_variable_h(
         h_e(t)*(T_e - T_s) + a*Q = h_bar*(T_e - T_s) + dh*(T_e - T_s) + a*Q
 
     so with ``R_so = 1/h_bar`` the driving temperature becomes ``T_sol = T_e + (a*Q + q_co)/h_bar``
-    with ``q_co = dh*(T_e - T_s)``. Since ``q_co`` needs the surface temperature it is solved by
-    iteration; the paper notes fewer than five passes suffice, which matches what we see.
+    with ``q_co = dh*(T_e - T_s)``.
+
+    ``q_co`` depends on the surface temperature, so the paper solves it by iteration and states
+    that fewer than five passes suffice. That does NOT hold for the wind series in a real EPW:
+    measured across the whole material library on Atlanta TMY3, the Picard gain exceeds 1 for
+    every single material, so plain iteration diverges and even a damped version had not reached
+    1e-4 after fifty passes for the metal roofs. The relation is linear in ``T_s``, so this
+    solves it directly instead (see below) — exact, and independent of how variable the wind is.
 
     Args:
         T_environmental: combined air/radiant environmental temperature (degC), i.e.
@@ -82,42 +89,66 @@ def solve_surface_temperature_variable_h(
     effective = replace(assembly, R_so=1.0 / h_bar)
     delta_h = h_e - h_bar
 
-    # The undamped fixed point has gain |delta_h|/h_bar, which for a realistic wind series
-    # exceeds 1 (h_e spans ~10 to ~70 W/m2-K about a mean near 26). For a surface that closely
-    # follows its driving temperature — a thin or well-insulated outer layer, |H| ~ 1 — plain
-    # iteration then DIVERGES, and spectacularly: an insulated roof ran away to 3e4 degC before
-    # this damping was added. Under-relaxation with adaptive backoff is what makes it robust.
-    weight = 0.7
+    # This is a LINEAR system, so solve it as one rather than iterating.
+    #
+    # Simple Picard iteration on q_co has gain |delta_h|/h_bar * |H|, and on real weather that
+    # exceeds 1 for EVERY material in the library (h_e spans ~10 to ~70 W/m2-K about a mean near
+    # 26, and |H| approaches 1 for any thin or insulated outer layer). Undamped it diverges —
+    # an insulated roof reached 3e4 degC. Damped it converges, but slowly and unpredictably:
+    # metal roofs still had not reached 1e-4 after fifty passes, and the loop then returned a
+    # silently unconverged answer.
+    #
+    # Writing A for the (affine) admittance solve and D for multiplication by delta_h/h_bar:
+    #
+    #     T_s = A[u - D T_s]        with u = T_env + (Q + delta_h*T_env)/h_bar
+    #     (I + L·D) T_s = L[u] + c   where A[x] = L[x] + c, L linear
+    #
+    # L costs one FFT pair, so a Krylov solve converges in tens of matvecs regardless of gain
+    # and needs no relaxation parameter.
+    T_env = np.asarray(T_environmental, dtype=float)
+    Q_abs = np.asarray(Q_absorbed, dtype=float)
+    n = T_env.size
+    scale = delta_h / h_bar
 
-    T_sol = T_environmental + Q_absorbed / h_bar
-    T_surface = solve_surface_temperature(T_sol, effective, T_internal)
-    previous_shift = np.inf
+    # Split the affine solve into its linear part and its constant offset.
+    zero = np.zeros(n)
+    offset = solve_surface_temperature(zero, effective, T_internal)  # = A[0] = c
 
-    for _ in range(max_iterations):
-        q_co = delta_h * (T_environmental - T_surface)
-        T_sol = T_environmental + (Q_absorbed + q_co) / h_bar
-        candidate = solve_surface_temperature(T_sol, effective, T_internal)
+    def linear(x: np.ndarray) -> np.ndarray:
+        return solve_surface_temperature(x, effective, T_internal) - offset
 
-        updated = T_surface + weight * (candidate - T_surface)
-        shift = float(np.max(np.abs(updated - T_surface)))
+    rhs = linear(T_env + (Q_abs + delta_h * T_env) / h_bar) + offset
 
-        if shift > previous_shift:
-            # Diverging: back off and retry from where we were rather than accepting it.
-            weight *= 0.5
-            if weight < 1e-3:
-                raise RuntimeError(
-                    "variable-h correction failed to converge; h_e is too variable for this "
-                    "assembly. Fall back to solve_surface_temperature with a fixed R_so."
-                )
-            previous_shift = np.inf
-            continue
+    def matvec(x: np.ndarray) -> np.ndarray:
+        return x + linear(scale * x)
 
-        T_surface = updated
-        previous_shift = shift
-        if shift < tol:
-            break
+    operator = LinearOperator((n, n), matvec=matvec, dtype=float)
+    guess = solve_surface_temperature(T_env + Q_abs / h_bar, effective, T_internal)
 
-    return T_surface
+    # gmres measures the residual in the 2-NORM, but the tolerance we care about is per-hour
+    # (max-norm) in kelvin. Over 8760 samples the two differ by up to sqrt(n), so ask for the
+    # tighter 2-norm bound that guarantees the max-norm one.
+    rhs_norm = float(np.linalg.norm(rhs))
+    solution, info = gmres(
+        operator, rhs, x0=guess,
+        rtol=tol / max(rhs_norm, 1.0), atol=0.0,
+        restart=min(80, n), maxiter=max_iterations,
+    )
+
+    if info != 0:
+        raise RuntimeError(
+            f"variable-h correction did not converge (gmres info={info}). The hourly h_e series "
+            "may be extreme; fall back to solve_surface_temperature with a fixed R_so."
+        )
+
+    # Verify the fixed point actually holds rather than trusting the solver's own flag.
+    residual = float(np.max(np.abs(matvec(solution) - rhs)))
+    if not np.isfinite(residual) or residual > max(1e-6, tol):
+        raise RuntimeError(
+            f"variable-h correction converged to a residual of {residual:.3g} K, above tolerance"
+        )
+
+    return solution
 
 
 def _cached_transfer_function(
